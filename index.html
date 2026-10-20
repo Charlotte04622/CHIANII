@@ -158,133 +158,169 @@ box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(223, 172, 108, 0.15);
 </div>
 
 <script>
-let wishes = JSON.parse(localStorage.getItem('china_birthday_wishes') || '[]');
+// 安全讀取 LocalStorage
+let wishes = [];
+try {
+  wishes = JSON.parse(localStorage.getItem('china_birthday_wishes') || '[]');
+} catch (e) {
+  console.warn('無法讀取 LocalStorage', e);
+}
 
 function saveWishes() {
-localStorage.setItem('china_birthday_wishes', JSON.stringify(wishes));
-renderWishes();
-renderAdminWishes();
+  try {
+    localStorage.setItem('china_birthday_wishes', JSON.stringify(wishes));
+  } catch (e) {
+    console.warn('無法寫入 LocalStorage（可能處於無痕模式）', e);
+  }
+  renderWishes();
+  renderAdminWishes();
 }
 
 function renderWishes() {
-const grid = document.getElementById('wishesGrid');
-const empty = document.getElementById('emptyState');
-const badge = document.getElementById('wishCountBadge');
+  const grid = document.getElementById('wishesGrid');
+  const empty = document.getElementById('emptyState');
+  const badge = document.getElementById('wishCountBadge');
 
-badge.innerText = `共 ${wishes.length} 個心願`;
+  if (!grid || !empty || !badge) return;
 
-if (wishes.length === 0) {
-grid.innerHTML = '';
-empty.classList.remove('hidden');
-return;
-}
+  badge.innerText = `共 ${wishes.length} 個心願`;
 
-empty.classList.add('hidden');
-grid.innerHTML = wishes.map((w, index) => `
-<div class="gold-card rounded-xl p-5 flex flex-col justify-between">
-<div>
-<div class="flex justify-between items-start mb-2">
-<h3 class="text-base font-bold text-amber-100">${escapeHtml(w.name)}</h3>
-<button onclick="cheerWish(${index})" class="text-xs border border-amber-500/30 px-2 py-0.5 rounded-full text-amber-300 hover:bg-amber-500/20 flex items-center gap-1">
-<i class="fa-solid fa-heart text-rose-500"></i> ${w.likes || 0}
-</button>
-</div>
-<p class="text-xs text-gray-400 mb-2"><i class="fa-solid fa-user text-amber-400/60 mr-1"></i>許願人：${escapeHtml(w.by)}</p>
-${w.note ? `<p class="text-xs text-gray-300 bg-black/40 p-3 rounded-lg border border-white/5 mb-3 leading-relaxed">${escapeHtml(w.note)}</p>` : ''}
-</div>
-${w.url ? `<a href="${w.url}" target="_blank" class="text-xs text-amber-400/80 hover:text-amber-300 flex items-center gap-1 mt-2 underline"><i class="fa-solid fa-arrow-up-right-from-square"></i> 查看商品/參考連結</a>` : ''}
-</div>
-`).join('');
+  if (wishes.length === 0) {
+    grid.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+
+  empty.classList.add('hidden');
+  grid.innerHTML = wishes.map((w, index) => `
+    <div class="gold-card rounded-xl p-5 flex flex-col justify-between">
+      <div>
+        <div class="flex justify-between items-start mb-2">
+          <h3 class="text-base font-bold text-amber-100">${escapeHtml(w.name)}</h3>
+          <button onclick="cheerWish(${index})" class="text-xs border border-amber-500/30 px-2 py-0.5 rounded-full text-amber-300 hover:bg-amber-500/20 flex items-center gap-1">
+            <i class="fa-solid fa-heart text-rose-500"></i> ${w.likes || 0}
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mb-2"><i class="fa-solid fa-user text-amber-400/60 mr-1"></i>許願人：${escapeHtml(w.by)}</p>
+        ${w.note ? `<p class="text-xs text-gray-300 bg-black/40 p-3 rounded-lg border border-white/5 mb-3 leading-relaxed">${escapeHtml(w.note)}</p>` : ''}
+      </div>
+      ${w.url ? `<a href="${escapeHtml(w.url)}" target="_blank" class="text-xs text-amber-400/80 hover:text-amber-300 flex items-center gap-1 mt-2 underline"><i class="fa-solid fa-arrow-up-right-from-square"></i> 查看商品/參考連結</a>` : ''}
+    </div>
+  `).join('');
 }
 
 function cheerWish(index) {
-wishes[index].likes = (wishes[index].likes || 0) + 1;
-saveWishes();
-confetti({ particleCount: 30, spread: 60, origin: { y: 0.8 } });
+  wishes[index].likes = (wishes[index].likes || 0) + 1;
+  saveWishes();
+  if (typeof confetti === 'function') {
+    confetti({ particleCount: 30, spread: 60, origin: { y: 0.8 } });
+  }
 }
 
 function openWishModal() { document.getElementById('wishModal').classList.remove('hidden'); }
 function closeWishModal() { document.getElementById('wishModal').classList.add('hidden'); }
 
 function submitWish(e) {
-e.preventDefault();
-const newWish = {
-id: Date.now(),
-name: document.getElementById('giftName').value,
-by: document.getElementById('wisherName').value,
-note: document.getElementById('wishNote').value,
-url: document.getElementById('giftUrl').value,
-likes: 0,
-time: new Date().toLocaleString()
-};
-wishes.unshift(newWish);
-saveWishes();
-closeWishModal();
-document.getElementById('wishForm').reset();
-confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+  e.preventDefault();
+  try {
+    const giftNameEl = document.getElementById('giftName');
+    const wisherNameEl = document.getElementById('wisherName');
+    const wishNoteEl = document.getElementById('wishNote');
+    const giftUrlEl = document.getElementById('giftUrl');
+
+    const newWish = {
+      id: Date.now(),
+      name: giftNameEl ? giftNameEl.value : '',
+      by: wisherNameEl ? wisherNameEl.value : '',
+      note: wishNoteEl ? wishNoteEl.value : '',
+      url: giftUrlEl ? giftUrlEl.value : '',
+      likes: 0,
+      time: new Date().toLocaleString()
+    };
+
+    wishes.unshift(newWish);
+    saveWishes();
+    closeWishModal();
+
+    const form = document.getElementById('wishForm');
+    if (form) form.reset();
+
+    if (typeof confetti === 'function') {
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+    }
+  } catch (err) {
+    console.error('送出心願時發生錯誤:', err);
+    alert('送出時發生了一點狀況，請重新整理頁面後再試一次！');
+  }
 }
 
 function toggleAdminModal() {
-document.getElementById('adminModal').classList.toggle('hidden');
+  document.getElementById('adminModal').classList.toggle('hidden');
 }
 
 function checkAdminPassword() {
-const pwd = document.getElementById('adminPassword').value.trim().toLowerCase();
-if (pwd === '8888' || pwd === 'china') {
-document.getElementById('adminLoginArea').classList.add('hidden');
-document.getElementById('adminPanelArea').classList.remove('hidden');
-renderAdminWishes();
-} else {
-alert('密碼錯誤！請輸入 8888 或 china');
-}
+  const pwd = document.getElementById('adminPassword').value.trim().toLowerCase();
+  if (pwd === '8888' || pwd === 'china') {
+    document.getElementById('adminLoginArea').classList.add('hidden');
+    document.getElementById('adminPanelArea').classList.remove('hidden');
+    renderAdminWishes();
+  } else {
+    alert('密碼錯誤！請輸入 8888 或 china');
+  }
 }
 
 function logoutAdmin() {
-document.getElementById('adminLoginArea').classList.remove('hidden');
-document.getElementById('adminPanelArea').classList.add('hidden');
-document.getElementById('adminPassword').value = '';
+  document.getElementById('adminLoginArea').classList.remove('hidden');
+  document.getElementById('adminPanelArea').classList.add('hidden');
+  document.getElementById('adminPassword').value = '';
 }
 
 function renderAdminWishes() {
-const list = document.getElementById('adminWishesList');
-if (wishes.length === 0) {
-list.innerHTML = '<p class="text-gray-500 text-xs text-center py-6">目前沒有任何心願紀錄</p>';
-return;
-}
-list.innerHTML = wishes.map((w, index) => `
-<div class="bg-black/50 border border-white/10 rounded-lg p-3 flex justify-between items-center text-xs">
-<div>
-<div class="font-bold text-amber-200 text-sm">${escapeHtml(w.name)}</div>
-<div class="text-gray-400 mt-0.5">由 ${escapeHtml(w.by)} 於 ${w.time} 填寫</div>
-</div>
-<button onclick="deleteWish(${index})" class="text-xs text-red-400 hover:text-red-300 px-2 py-1 border border-red-500/20 rounded">
-<i class="fa-solid fa-trash"></i> 刪除
-</button>
-</div>
-`).join('');
+  const list = document.getElementById('adminWishesList');
+  if (!list) return;
+  if (wishes.length === 0) {
+    list.innerHTML = '<p class="text-gray-500 text-xs text-center py-6">目前沒有任何心願紀錄</p>';
+    return;
+  }
+  list.innerHTML = wishes.map((w, index) => `
+    <div class="bg-black/50 border border-white/10 rounded-lg p-3 flex justify-between items-center text-xs">
+      <div>
+        <div class="font-bold text-amber-200 text-sm">${escapeHtml(w.name)}</div>
+        <div class="text-gray-400 mt-0.5">由 ${escapeHtml(w.by)} 於 ${w.time} 填寫</div>
+      </div>
+      <button onclick="deleteWish(${index})" class="text-xs text-red-400 hover:text-red-300 px-2 py-1 border border-red-500/20 rounded">
+        <i class="fa-solid fa-trash"></i> 刪除
+      </button>
+    </div>
+  `).join('');
 }
 
 function deleteWish(index) {
-if (confirm('確定要刪除這個願望嗎？')) {
-wishes.splice(index, 1);
-saveWishes();
-}
+  if (confirm('確定要刪除這個願望嗎？')) {
+    wishes.splice(index, 1);
+    saveWishes();
+  }
 }
 
 function copyShareLink() {
-const temp = document.createElement('input');
-temp.value = window.location.href;
-document.body.appendChild(temp);
-temp.select();
-document.execCommand('copy');
-document.body.removeChild(temp);
-alert('網址已複製！');
+  const temp = document.createElement('input');
+  temp.value = window.location.href;
+  document.body.appendChild(temp);
+  temp.select();
+  try {
+    document.execCommand('copy');
+    alert('網址已複製！');
+  } catch (e) {
+    alert('複製失敗，請手動複製網址列。');
+  }
+  document.body.removeChild(temp);
 }
 
 function escapeHtml(text) {
-return (text || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+  return (text || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
 }
 
+// 初始化渲染
 renderWishes();
 </script>
 </body>
