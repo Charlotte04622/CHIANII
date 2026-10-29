@@ -253,20 +253,22 @@ function logoutAdmin() {
 }
 
 function renderAdminWishes() {
-  const list = document.getElementById('adminWishesList');
-  if (!list) return;
+  const adminList = document.getElementById('adminWishesList') || document.getElementById('adminList');
+  if (!adminList) return;
+
   if (wishes.length === 0) {
-    list.innerHTML = '<p class="text-gray-500 text-xs text-center py-6">目前沒有任何心願紀錄</p>';
+    adminList.innerHTML = '<p class="text-gray-500 text-xs text-center py-6">目前沒有任何心願紀錄</p>';
     return;
   }
-  list.innerHTML = wishes.map((w, index) => `
-    <div class="bg-black/50 border border-white/10 rounded-lg p-3 flex justify-between items-center text-xs">
+
+  adminList.innerHTML = wishes.map((w) => `
+    <div class="bg-black/50 border border-white/10 rounded-lg p-3 flex justify-between items-center text-xs mb-2">
       <div>
-        <div class="font-bold text-amber-200 text-sm">${escapeHtml(w.name || '未命名禮物')}</div>
-        <div class="text-gray-400 mt-0.5">由 ${escapeHtml(w.by || '熱心網友')} 於 ${w.time || '剛剛'} 填寫</div>
+        <div class="text-amber-300 font-bold">${escapeHtml(w.name)}</div>
+        <div class="text-zinc-400">由 ${escapeHtml(w.by)} 於 ${escapeHtml(w.time)} 填寫</div>
       </div>
-      <button onclick="deleteWish(${index})" type="button" class="text-xs text-red-400 hover:text-red-300 px-2 py-1 border border-red-500/20 rounded cursor-pointer">
-        <i class="fa-solid fa-trash"></i> 刪除
+      <button onclick="deleteWishByRow(${w.rowId})" class="px-2.5 py-1 bg-red-600/80 hover:bg-red-600 text-white rounded transition">
+        刪除
       </button>
     </div>
   `).join('');
@@ -311,18 +313,12 @@ function copyShareLink() {
   }
   document.body.removeChild(temp);
 }
-async function deleteWish(index) {
-  if (confirm('確定要從雲端試算表中刪除這個願望嗎？')) {
-    const target = wishes[index];
-    if (!target || !target.rowId) {
-      alert('找不到該筆資料的行數 ID！');
-      return;
-    }
-
+async function deleteWishByRow(rowId) {
+  if (confirm('確定要從雲端試算表中刪除這筆資料嗎？')) {
     try {
       const formData = new URLSearchParams();
       formData.append("action", "delete");
-      formData.append("row", target.rowId);
+      formData.append("row", rowId);
 
       await fetch(SCRIPT_URL, {
         method: 'POST',
@@ -331,7 +327,7 @@ async function deleteWish(index) {
         body: formData.toString()
       });
 
-      alert('已從雲端刪除！');
+      alert('已送出刪除指令！');
       setTimeout(fetchWishes, 1500);
     } catch (err) {
       console.error("刪除失敗", err);
