@@ -313,7 +313,7 @@ function copyShareLink() {
 }
 
 function escapeHtml(text) {
-  if (text === null || text === undefined) return '';
+  if (!text) return '';
   return String(text).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
 }
 
