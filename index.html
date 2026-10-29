@@ -157,7 +157,7 @@ body {
 </div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJlCr-zXoMLnL5oA0tEFBhbHXYfkwZ9EmBqq0jowWLyEqhJ11h0kDqGJDu-wGkU5ts/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbylOYp2jiFZ-2Uq08QvevSEvPJnvBK8w927kUPnpvtdOqEiK1gd16Uq3CFTiWLVuLnc/exec";
 
 let wishes = [];
 
@@ -236,12 +236,12 @@ function toggleAdminModal() {
 function checkAdminPassword() {
   const pwdInput = document.getElementById('adminPassword');
   const pwd = pwdInput ? pwdInput.value.trim().toLowerCase() : '';
-  if (pwd === '8888' || pwd === 'china') {
+  if (pwd === '8888' || pwd === '1111') {
     document.getElementById('adminLoginArea').classList.add('hidden');
     document.getElementById('adminPanelArea').classList.remove('hidden');
     renderAdminWishes();
   } else {
-    alert('密碼錯誤！請輸入 8888 或 china');
+    alert('密碼錯誤！請輸入 8888 ');
   }
 }
 
