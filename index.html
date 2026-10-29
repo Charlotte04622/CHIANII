@@ -79,14 +79,14 @@ body {
     <h2 class="text-base font-bold text-amber-200/90 flex items-center gap-2">
       <i class="fa-solid fa-sparkles text-amber-400"></i> 池中的心願清單
     </h2>
-    <span id="wishCountBadge" class="text-xs text-gray-400">共 0 個心願</span>
+    <span id="wishCountBadge" class="text-xs text-gray-400">載入中...</span>
   </div>
 
   <div id="wishesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
     <!-- 卡片由 JS 動態生成 -->
   </div>
 
-  <div id="emptyState" class="text-center py-20 text-gray-500 space-y-3">
+  <div id="emptyState" class="text-center py-20 text-gray-500 space-y-3 hidden">
     <i class="fa-solid fa-water text-4xl opacity-30"></i>
     <p class="text-sm">池水清澈如鏡，靜候投下第一個心願...</p>
   </div>
@@ -160,16 +160,17 @@ body {
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyJlCr-zXoMLnL5oA0tEFBhbHXYfkwZ9EmBqq0jowWLyEqhJ11h0kDqGJDu-wGkU5ts/exec";
 
 let wishes = [];
-try {
-  wishes = JSON.parse(localStorage.getItem('china_birthday_wishes') || '[]');
-} catch (e) {
-  wishes = [];
-}
 
-function saveWishes() {
+async function fetchWishes() {
   try {
-    localStorage.setItem('china_birthday_wishes', JSON.stringify(wishes));
-  } catch (e) {}
+    const res = await fetch(SCRIPT_URL);
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      wishes = data.reverse(); // 最新的排在最前面
+    }
+  } catch (err) {
+    console.error("無法取得雲端心願", err);
+  }
   renderWishes();
   renderAdminWishes();
 }
@@ -210,7 +211,7 @@ function renderWishes() {
 function cheerWish(index) {
   if (wishes[index]) {
     wishes[index].likes = (wishes[index].likes || 0) + 1;
-    saveWishes();
+    renderWishes();
     if (typeof confetti === 'function') {
       confetti({ particleCount: 30, spread: 60, origin: { y: 0.8 } });
     }
@@ -262,20 +263,11 @@ function renderAdminWishes() {
     <div class="bg-black/50 border border-white/10 rounded-lg p-3 flex justify-between items-center text-xs">
       <div>
         <div class="font-bold text-amber-200 text-sm">${escapeHtml(w.name)}</div>
-        <div class="text-gray-400 mt-0.5">由 ${escapeHtml(w.by)} 於 ${w.time} 填寫</div>
+        <div class="text-gray-400 mt-0.5">由 ${escapeHtml(w.by)} 於 ${w.time || '剛剛'} 填寫</div>
       </div>
-      <button onclick="deleteWish(${index})" type="button" class="text-xs text-red-400 hover:text-red-300 px-2 py-1 border border-red-500/20 rounded cursor-pointer">
-        <i class="fa-solid fa-trash"></i> 刪除
-      </button>
+      <span class="text-gray-500 text-[10px]">雲端同步中</span>
     </div>
   `).join('');
-}
-
-function deleteWish(index) {
-  if (confirm('確定要刪除這個願望嗎？')) {
-    wishes.splice(index, 1);
-    saveWishes();
-  }
 }
 
 function copyShareLink() {
@@ -298,7 +290,7 @@ function escapeHtml(text) {
 
 // 監聽頁面載入後進行事件綁定
 document.addEventListener('DOMContentLoaded', () => {
-  renderWishes();
+  fetchWishes(); // 一開網頁就從 Google 試算表抓資料！
 
   const btnOpenWish = document.getElementById('btnOpenWish');
   if (btnOpenWish) btnOpenWish.addEventListener('click', openWishModal);
@@ -337,16 +329,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const noteStr = document.getElementById('wishNote').value;
       const urlStr = document.getElementById('giftUrl').value;
 
-      const newWish = {
-        id: Date.now(),
-        name: nameStr,
-        by: byStr,
-        note: noteStr,
-        url: urlStr,
-        likes: 0,
-        time: timeStr
-      };
-
       if (SCRIPT_URL) {
         try {
           const formData = new URLSearchParams();
@@ -367,8 +349,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      wishes.unshift(newWish);
-      saveWishes();
       closeWishModal();
       wishForm.reset();
 
@@ -380,6 +360,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof confetti === 'function') {
         confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
       }
+
+      alert('心願已成功送入許願池！');
+      // 重新從雲端抓取最新資料顯示
+      setTimeout(fetchWishes, 1500);
     });
   }
 });
