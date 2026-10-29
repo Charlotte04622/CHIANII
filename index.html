@@ -311,7 +311,35 @@ function copyShareLink() {
   }
   document.body.removeChild(temp);
 }
+async function deleteWish(index) {
+  if (confirm('確定要從雲端試算表中刪除這個願望嗎？')) {
+    const target = wishes[index];
+    if (!target || !target.rowId) {
+      alert('找不到該筆資料的行數 ID！');
+      return;
+    }
 
+    try {
+      const formData = new URLSearchParams();
+      formData.append("action", "delete");
+      formData.append("row", target.rowId);
+
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+      });
+
+      alert('已從雲端刪除！');
+      setTimeout(fetchWishes, 1500);
+    } catch (err) {
+      console.error("刪除失敗", err);
+      alert('刪除失敗，請稍後再試');
+    }
+  }
+}
+  
 function escapeHtml(text) {
   if (text === null || text === undefined) return '';
   return String(text).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
