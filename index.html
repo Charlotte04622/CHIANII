@@ -77,4 +77,322 @@ body {
   <!-- 禮物列表 -->
   <div class="mb-6 flex justify-between items-center border-b border-white/10 pb-4">
     <h2 class="text-base font-bold text-amber-200/90 flex items-center gap-2">
-      <i class="fa-solid fa-sparkles text
+      <i class="fa-solid fa-sparkles text-amber-400"></i> 池中的心願清單
+    </h2>
+    <span id="wishCountBadge" class="text-xs text-gray-400">載入中...</span>
+  </div>
+
+  <div id="wishesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+    <!-- 卡片由 JS 動態生成 -->
+  </div>
+
+  <div id="emptyState" class="text-center py-20 text-gray-500 space-y-3 hidden">
+    <i class="fa-solid fa-water text-4xl opacity-30"></i>
+    <p class="text-sm">池水清澈如鏡，靜候投下第一個心願...</p>
+  </div>
+</main>
+
+<!-- 許願彈窗 -->
+<div id="wishModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-[#121216] border border-amber-500/30 rounded-2xl w-full max-w-md p-6 relative">
+    <button id="btnCloseWishModal" type="button" class="absolute top-4 right-4 text-gray-400 hover:text-white cursor-pointer">
+      <i class="fa-solid fa-xmark text-xl"></i>
+    </button>
+    <h3 class="text-lg font-bold gold-gradient-text mb-4 flex items-center gap-2">
+      <i class="fa-solid fa-coins text-amber-400"></i> 投下一枚心願
+    </h3>
+    <form id="wishForm" class="space-y-4">
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">禮物名稱 *</label>
+        <input type="text" id="giftName" required placeholder="例如：某款香水、耳機、大餐..." class="w-full bg-black/60 border border-white/15 rounded-lg px-3 py-2 text-sm focus:border-amber-400 outline-none">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">許願人 / 填寫者暱稱 *</label>
+        <input type="text" id="wisherName" required placeholder="你的名字或暱稱" class="w-full bg-black/60 border border-white/15 rounded-lg px-3 py-2 text-sm focus:border-amber-400 outline-none">
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">想要的理由</label>
+        <textarea id="wishNote" rows="3" placeholder="寫點給佳妮的祝福或推薦理由吧！" class="w-full bg-black/60 border border-white/15 rounded-lg px-3 py-2 text-sm focus:border-amber-400 outline-none"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">參考連結（選填）</label>
+        <input type="url" id="giftUrl" placeholder="https://..." class="w-full bg-black/60 border border-white/15 rounded-lg px-3 py-2 text-sm focus:border-amber-400 outline-none">
+      </div>
+      <button type="submit" id="submitBtn" class="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-black font-bold rounded-lg hover:brightness-110 transition mt-2 cursor-pointer">
+        確認送入許願池
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- 後台管理彈窗 -->
+<div id="adminModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-[#121216] border border-amber-500/40 rounded-2xl w-full max-w-xl max-h-[85vh] flex flex-col p-6 relative">
+    <button id="btnCloseAdminModal" type="button" class="absolute top-4 right-4 text-gray-400 hover:text-white cursor-pointer">
+      <i class="fa-solid fa-xmark text-xl"></i>
+    </button>
+
+    <div id="adminLoginArea" class="py-10 text-center space-y-4">
+      <i class="fa-solid fa-shield-halved text-4xl text-amber-400"></i>
+      <h3 class="text-lg font-bold text-white">管理後台</h3>
+      <p class="text-xs text-gray-400">請輸入管理密碼</p>
+      <div class="flex max-w-xs mx-auto gap-2">
+        <input type="password" id="adminPassword" placeholder="輸入密碼..." class="bg-black border border-white/20 rounded px-3 py-2 text-sm w-full outline-none focus:border-amber-400">
+        <button id="btnLoginAdmin" type="button" class="px-4 py-2 bg-amber-500 text-black font-bold rounded text-sm hover:brightness-110 cursor-pointer">解鎖</button>
+      </div>
+    </div>
+
+    <div id="adminPanelArea" class="hidden flex-1 overflow-hidden flex flex-col">
+      <div class="flex justify-between items-center mb-4 pb-2 border-b border-white/10">
+        <h3 class="text-base font-bold gold-gradient-text flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-amber-400"></i> 心願池管理列表
+        </h3>
+        <button id="btnLogoutAdmin" type="button" class="text-xs text-red-400 hover:underline cursor-pointer">登出</button>
+      </div>
+      <div class="flex-1 overflow-y-auto space-y-2 pr-1" id="adminWishesList">
+        <!-- 後台項目 -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbylOYp2jiFZ-2Uq08QvevSEvPJnvBK8w927kUPnpvtdOqEiK1gd16Uq3CFTiWLVuLnc/exec";
+
+let wishes = [];
+
+async function fetchWishes() {
+  try {
+    const res = await fetch(SCRIPT_URL);
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      wishes = data.reverse();
+    }
+  } catch (err) {
+    console.error("無法取得雲端心願", err);
+  }
+  renderWishes();
+  renderAdminWishes();
+}
+
+function renderWishes() {
+  const grid = document.getElementById('wishesGrid');
+  const empty = document.getElementById('emptyState');
+  const badge = document.getElementById('wishCountBadge');
+
+  if (!grid || !empty || !badge) return;
+
+  badge.innerText = `共 ${wishes.length} 個心願`;
+
+  if (wishes.length === 0) {
+    grid.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+
+  empty.classList.add('hidden');
+  grid.innerHTML = wishes.map((w, index) => `
+    <div class="gold-card rounded-xl p-5 flex flex-col justify-between">
+      <div>
+        <div class="flex justify-between items-start mb-2">
+          <h3 class="text-base font-bold text-amber-100">${escapeHtml(w.name || '未命名禮物')}</h3>
+          <button onclick="cheerWish(${index})" type="button" class="text-xs border border-amber-500/30 px-2 py-0.5 rounded-full text-amber-300 hover:bg-amber-500/20 flex items-center gap-1 cursor-pointer">
+            <i class="fa-solid fa-heart text-rose-500"></i> ${w.likes || 0}
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mb-2"><i class="fa-solid fa-user text-amber-400/60 mr-1"></i>許願人：${escapeHtml(w.by || '熱心網友')}</p>
+        ${w.note ? `<p class="text-xs text-gray-300 bg-black/40 p-3 rounded-lg border border-white/5 mb-3 leading-relaxed">${escapeHtml(w.note)}</p>` : ''}
+      </div>
+      ${w.url ? `<a href="${escapeHtml(w.url)}" target="_blank" rel="noopener noreferrer" class="text-xs text-amber-400/80 hover:text-amber-300 flex items-center gap-1 mt-2 underline"><i class="fa-solid fa-arrow-up-right-from-square"></i> 查看商品/參考連結</a>` : ''}
+    </div>
+  `).join('');
+}
+
+function cheerWish(index) {
+  if (wishes[index]) {
+    wishes[index].likes = (wishes[index].likes || 0) + 1;
+    renderWishes();
+    if (typeof confetti === 'function') {
+      confetti({ particleCount: 30, spread: 60, origin: { y: 0.8 } });
+    }
+  }
+}
+
+function openWishModal() {
+  const modal = document.getElementById('wishModal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeWishModal() {
+  const modal = document.getElementById('wishModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function toggleAdminModal() {
+  const modal = document.getElementById('adminModal');
+  if (modal) modal.classList.toggle('hidden');
+}
+
+function checkAdminPassword() {
+  const pwdInput = document.getElementById('adminPassword');
+  const pwd = pwdInput ? pwdInput.value.trim().toLowerCase() : '';
+  if (pwd === '8888' || pwd === '1111') {
+    document.getElementById('adminLoginArea').classList.add('hidden');
+    document.getElementById('adminPanelArea').classList.remove('hidden');
+    renderAdminWishes();
+  } else {
+    alert('密碼錯誤！請輸入 8888');
+  }
+}
+
+function logoutAdmin() {
+  document.getElementById('adminLoginArea').classList.remove('hidden');
+  document.getElementById('adminPanelArea').classList.add('hidden');
+  const pwdInput = document.getElementById('adminPassword');
+  if (pwdInput) pwdInput.value = '';
+}
+
+function renderAdminWishes() {
+  const list = document.getElementById('adminWishesList');
+  if (!list) return;
+  if (wishes.length === 0) {
+    list.innerHTML = '<p class="text-gray-500 text-xs text-center py-6">目前沒有任何心願紀錄</p>';
+    return;
+  }
+  list.innerHTML = wishes.map((w, index) => `
+    <div class="bg-black/50 border border-white/10 rounded-lg p-3 flex justify-between items-center text-xs">
+      <div>
+        <div class="font-bold text-amber-200 text-sm">${escapeHtml(w.name || '未命名禮物')}</div>
+        <div class="text-gray-400 mt-0.5">由 ${escapeHtml(w.by || '熱心網友')} 於 ${w.time || '剛剛'} 填寫</div>
+      </div>
+      <button onclick="deleteWish(${index})" type="button" class="text-xs text-red-400 hover:text-red-300 px-2 py-1 border border-red-500/20 rounded cursor-pointer">
+        <i class="fa-solid fa-trash"></i> 刪除
+      </button>
+    </div>
+  `).join('');
+}
+
+async function deleteWish(index) {
+  if (confirm('確定要從雲端試算表中刪除這個願望嗎？')) {
+    const target = wishes[index];
+    if (!target || !target.rowId) return;
+
+    try {
+      const formData = new URLSearchParams();
+      formData.append("action", "delete");
+      formData.append("row", target.rowId);
+
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+      });
+
+      alert('已從雲端刪除！');
+      setTimeout(fetchWishes, 1500);
+    } catch (err) {
+      console.error("刪除失敗", err);
+      alert('刪除失敗，請稍後再試');
+    }
+  }
+}
+
+function copyShareLink() {
+  const temp = document.createElement('input');
+  temp.value = window.location.href;
+  document.body.appendChild(temp);
+  temp.select();
+  try {
+    document.execCommand('copy');
+    alert('網址已複製！');
+  } catch (e) {
+    alert('複製失敗，請手動複製網址列。');
+  }
+  document.body.removeChild(temp);
+}
+
+function escapeHtml(text) {
+  return (text || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  fetchWishes();
+
+  const btnOpenWish = document.getElementById('btnOpenWish');
+  if (btnOpenWish) btnOpenWish.addEventListener('click', openWishModal);
+
+  const btnCloseWishModal = document.getElementById('btnCloseWishModal');
+  if (btnCloseWishModal) btnCloseWishModal.addEventListener('click', closeWishModal);
+
+  const btnShare = document.getElementById('btnShare');
+  if (btnShare) btnShare.addEventListener('click', copyShareLink);
+
+  const btnAdmin = document.getElementById('btnAdmin');
+  if (btnAdmin) btnAdmin.addEventListener('click', toggleAdminModal);
+
+  const btnCloseAdminModal = document.getElementById('btnCloseAdminModal');
+  if (btnCloseAdminModal) btnCloseAdminModal.addEventListener('click', toggleAdminModal);
+
+  const btnLoginAdmin = document.getElementById('btnLoginAdmin');
+  if (btnLoginAdmin) btnLoginAdmin.addEventListener('click', checkAdminPassword);
+
+  const btnLogoutAdmin = document.getElementById('btnLogoutAdmin');
+  if (btnLogoutAdmin) btnLogoutAdmin.addEventListener('click', logoutAdmin);
+
+  const wishForm = document.getElementById('wishForm');
+  if (wishForm) {
+    wishForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+      if (submitBtn) {
+        submitBtn.innerText = "正在送入許願池...";
+        submitBtn.disabled = true;
+      }
+
+      const timeStr = new Date().toLocaleString();
+      const nameStr = document.getElementById('giftName').value;
+      const byStr = document.getElementById('wisherName').value;
+      const noteStr = document.getElementById('wishNote').value;
+      const urlStr = document.getElementById('giftUrl').value;
+
+      if (SCRIPT_URL) {
+        try {
+          const formData = new URLSearchParams();
+          formData.append("time", timeStr);
+          formData.append("name", nameStr);
+          formData.append("by", byStr);
+          formData.append("note", noteStr);
+          formData.append("url", urlStr);
+
+          await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString()
+          });
+        } catch (err) {
+          console.error("雲端同步失敗", err);
+        }
+      }
+
+      closeWishModal();
+      wishForm.reset();
+
+      if (submitBtn) {
+        submitBtn.innerText = "確認送入許願池";
+        submitBtn.disabled = false;
+      }
+
+      if (typeof confetti === 'function') {
+        confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+      }
+
+      alert('心願已成功送入許願池！');
+      setTimeout(fetchWishes, 1500);
+    });
+  }
+});
+</script>
+</body>
+</html>
